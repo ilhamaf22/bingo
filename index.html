@@ -1,0 +1,852 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Undian Angka 1–25</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: satu aplikasi tiga tab (Tahap 1 · Tahap 2 · Admin); panggung undian terpusat, admin berupa panel-panel bertumpuk */
+:root{
+  --bg:#eef2f6; --surface:#ffffff; --ink:#14202e; --muted:#5d6b7c; --line:#d6dee8;
+  --ball:#ffc83d; --ball-deep:#e59a00; --ball-ink:#2a1a00;
+  --card:#1f2f6b; --card-ink:#ffffff; --card-sub:#aebcf0;
+  --accent:#1f4fd1; --accent-ink:#ffffff; --used:#dfe6ee; --used-ink:#8b98a8;
+  --ok:#1e8a4c; --ok-bg:#e3f4ea; --warn:#a15c00; --warn-bg:#fff1d6; --bad:#c2372d; --bad-bg:#fde6e3;
+  --display:"Unbounded","Arial Black",system-ui,sans-serif;
+  --body:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0e1621; --surface:#16212f; --ink:#e8eef5; --muted:#93a2b4; --line:#26354a;
+  --card:#22377f; --card-sub:#a9b8f2;
+  --accent:#5b8bff; --accent-ink:#06122e; --used:#1c2a3b; --used-ink:#5c6d82;
+  --ok:#5fd394; --ok-bg:#12301f; --warn:#f2b44f; --warn-bg:#33260d; --bad:#ff8a80; --bad-bg:#3a1714; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e1621; --surface:#16212f; --ink:#e8eef5; --muted:#93a2b4; --line:#26354a;
+  --card:#22377f; --card-sub:#a9b8f2;
+  --accent:#5b8bff; --accent-ink:#06122e; --used:#1c2a3b; --used-ink:#5c6d82;
+  --ok:#5fd394; --ok-bg:#12301f; --warn:#f2b44f; --warn-bg:#33260d; --bad:#ff8a80; --bad-bg:#3a1714; color-scheme:dark}
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5}
+.topbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+.topbar .in{max-width:760px;margin:0 auto;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.brand{font-family:var(--display);font-weight:800;font-size:15px;letter-spacing:-.01em}
+.tabs{display:flex;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:4px}
+.tabs a{text-decoration:none;color:var(--muted);font-weight:700;font-size:14px;padding:7px 14px;border-radius:999px}
+.tabs a[aria-current="page"]{background:var(--accent);color:var(--accent-ink)}
+.tabs a:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+
+.wrap{max-width:760px;margin:0 auto;padding:24px 16px 48px;display:grid;gap:24px}
+header{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+h1{font-family:var(--display);font-weight:800;font-size:clamp(22px,5vw,30px);margin:0;letter-spacing:-.01em;text-wrap:balance}
+.count{font-variant-numeric:tabular-nums;color:var(--muted);font-weight:600}
+.count b{color:var(--ink)}
+.chip{display:inline-block;font-size:12px;font-weight:700;padding:3px 10px;border-radius:999px;background:var(--used);color:var(--muted);vertical-align:middle}
+
+.stage{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:26px 16px;display:grid;justify-items:center;gap:20px}
+.ball{width:min(220px,60vw);aspect-ratio:1;max-width:100%;border-radius:50%;
+  background:radial-gradient(circle at 34% 28%,#fff6d6 0 10%,var(--ball) 38%,var(--ball-deep) 100%);
+  box-shadow:inset -10px -14px 24px rgba(0,0,0,.18),0 14px 30px rgba(229,154,0,.28);display:grid;place-items:center;position:relative}
+.ball::after{content:"";position:absolute;inset:22%;border-radius:50%;background:#fffdf5;box-shadow:inset 0 2px 6px rgba(0,0,0,.12)}
+.ball span{position:relative;z-index:1;font-family:var(--display);font-weight:800;color:var(--ball-ink);font-size:clamp(48px,14vw,76px);font-variant-numeric:tabular-nums;line-height:1}
+.ball.empty span{font-size:clamp(28px,8vw,40px);color:#a37a1f}
+.ball.rolling{animation:wobble .22s ease-in-out infinite}
+.ball.rolling span{color:#8a6410}
+@keyframes wobble{0%{transform:rotate(-8deg)}50%{transform:rotate(8deg) translateY(-6px)}100%{transform:rotate(-8deg)}}
+.ball.land{animation:land .6s cubic-bezier(.2,1.8,.4,1)}
+@keyframes land{0%{transform:scale(1.25)}40%{transform:scale(.92)}100%{transform:scale(1)}}
+.stage.done{animation:glow .8s ease-out}
+@keyframes glow{0%{box-shadow:0 0 0 0 rgba(255,200,61,.7)}100%{box-shadow:0 0 0 22px rgba(255,200,61,0)}}
+.label{color:var(--muted);font-size:13px;letter-spacing:.06em;text-transform:uppercase;font-weight:600;margin-top:-6px;text-align:center}
+
+.card{width:100%;max-width:560px;background:var(--card);color:var(--card-ink);border-radius:18px;padding:24px 16px 20px;display:grid;justify-items:center;gap:6px;text-align:center;box-shadow:0 14px 30px rgba(31,47,107,.25);position:relative;overflow:hidden}
+.card::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent 0 27px,rgba(255,255,255,.06) 27px 28px),repeating-linear-gradient(90deg,transparent 0 27px,rgba(255,255,255,.06) 27px 28px);pointer-events:none}
+.card .tag{position:relative;font-size:12px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;color:var(--card-sub)}
+.expr{position:relative;font-family:var(--display);font-weight:800;font-size:clamp(22px,6.2vw,44px);line-height:1.25;text-wrap:balance;font-variant-numeric:tabular-nums;overflow-wrap:break-word;min-height:2.5em;display:flex;align-items:center;justify-content:center;max-width:100%}
+.expr{white-space:pre-line}
+.expr.long{font-family:var(--body);font-weight:700;font-size:clamp(18px,4.2vw,28px);line-height:1.4;text-align:center}
+.expr.xlong{font-family:var(--body);font-weight:600;font-size:clamp(16px,3.6vw,22px);line-height:1.45;text-align:left;justify-content:flex-start}
+.expr.idle{color:var(--card-sub);font-size:clamp(20px,5.5vw,30px)}
+.card.rolling .expr{animation:jitter .12s steps(2) infinite;color:#dfe6ff}
+@keyframes jitter{0%{transform:translateY(-2px)}100%{transform:translateY(2px)}}
+.card.land{animation:cland .55s cubic-bezier(.2,1.8,.4,1)}
+@keyframes cland{0%{transform:scale(1.06)}45%{transform:scale(.97)}100%{transform:scale(1)}}
+.answer{position:relative;display:flex;align-items:center;gap:10px;margin-top:4px;min-height:64px}
+.answer .eq{font-family:var(--display);font-weight:700;font-size:28px;color:var(--card-sub)}
+.answer .ans{min-width:64px;height:64px;padding:0 12px;border-radius:999px;display:grid;place-items:center;font-family:var(--display);font-weight:800;font-size:28px;background:rgba(255,255,255,.12);color:var(--card-sub);border:2px dashed rgba(255,255,255,.35);font-variant-numeric:tabular-nums}
+.answer .ans.shown{background:radial-gradient(circle at 34% 28%,#fff6d6 0 10%,var(--ball) 45%,var(--ball-deep) 100%);color:var(--ball-ink);border:0;box-shadow:inset -5px -7px 12px rgba(0,0,0,.18);animation:reveal .45s cubic-bezier(.2,1.7,.4,1)}
+@keyframes reveal{0%{transform:scale(.4) rotate(-30deg)}100%{transform:scale(1) rotate(0)}}
+
+.actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+button,.btn{font:inherit;cursor:pointer;border-radius:999px;border:0;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+button:focus-visible,.btn:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+.draw{background:var(--accent);color:var(--accent-ink);font-family:var(--display);font-weight:700;font-size:17px;padding:15px 34px;letter-spacing:.02em;transition:transform .1s}
+.draw:active{transform:scale(.97)}
+.reveal{background:var(--ball);color:var(--ball-ink);font-family:var(--display);font-weight:700;font-size:17px;padding:15px 28px}
+.primary{background:var(--accent);color:var(--accent-ink);font-weight:700;padding:10px 18px}
+button:disabled{background:var(--used)!important;color:var(--used-ink)!important;cursor:not-allowed}
+.ghost{background:transparent;color:var(--muted);border:1px solid var(--line);padding:10px 18px;font-weight:600}
+.ghost:hover{color:var(--ink);border-color:var(--muted)}
+.ghost:disabled{background:transparent!important}
+.confirm{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center;font-weight:600}
+.danger{background:var(--bad);color:#fff;padding:10px 18px;font-weight:700}
+
+section h2,.panel h2{font-family:var(--display);font-weight:700;font-size:15px;margin:0 0 12px;letter-spacing:.01em}
+.board{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.cell{aspect-ratio:1;border-radius:12px;display:grid;place-items:center;font-family:var(--display);font-weight:700;font-size:clamp(16px,4.5vw,22px);background:var(--surface);border:1px solid var(--line);font-variant-numeric:tabular-nums;transition:background .2s}
+.cell.out{background:var(--used);color:var(--used-ink);text-decoration:line-through;border-color:transparent}
+.cell.last,.cell.flash{background:var(--ball);color:var(--ball-ink);text-decoration:none;border-color:var(--ball-deep)}
+.cell.flash{transition:none}
+.hint{color:var(--muted);font-size:13px;margin:8px 0 0}
+
+.hist1{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:8px}
+.hist1 li{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:5px 12px 5px 5px}
+.hist1 .n,.hist2 .n{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:var(--ball);color:var(--ball-ink);font-family:var(--display);font-weight:700;font-size:14px;font-variant-numeric:tabular-nums;flex:none}
+.hist1 .o,.hist2 .o{color:var(--muted);font-size:12px;font-weight:700;font-variant-numeric:tabular-nums}
+.hist2{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:8px}
+.hist2 li{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px 10px;min-width:0}
+.hist2 .o{width:30px;flex:none}
+.hist2 .q{font-family:var(--display);font-weight:600;font-size:14px;flex:1;min-width:0;overflow-wrap:anywhere;white-space:pre-line}
+.hist2 .n.hid{background:var(--used);color:var(--used-ink)}
+.empty-note{color:var(--muted);margin:0}
+
+/* Admin */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:18px 16px;display:grid;gap:14px;min-width:0}
+.panel p{margin:0}
+.muted{color:var(--muted)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:12px}
+.stat{border:1px solid var(--line);border-radius:12px;padding:14px;display:grid;gap:8px}
+.stat .k{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.stat .v{font-family:var(--display);font-weight:700;font-size:24px;font-variant-numeric:tabular-nums}
+.stat .v small{font-family:var(--body);font-size:14px;color:var(--muted);font-weight:600}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.seg{display:flex;flex-wrap:wrap;gap:8px}
+.seg label{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:12px;padding:10px 14px;cursor:pointer;flex:1 1 220px}
+.seg label:has(input:checked){border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.seg input{margin-top:4px;accent-color:var(--accent)}
+.seg b{display:block}
+.seg span{font-size:13px;color:var(--muted)}
+.drop{border:2px dashed var(--line);border-radius:14px;padding:20px 16px;text-align:center;display:grid;gap:8px;justify-items:center;transition:border-color .15s}
+.drop.over{border-color:var(--accent);background:var(--used)}
+.drop input{max-width:100%}
+.msg{border-radius:10px;padding:10px 12px;font-weight:600;font-size:14px}
+.msg.ok{background:var(--ok-bg);color:var(--ok)}
+.msg.warn{background:var(--warn-bg);color:var(--warn)}
+.msg.bad{background:var(--bad-bg);color:var(--bad)}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:460px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);background:var(--bg)}
+td.num{font-family:var(--display);font-weight:700;font-variant-numeric:tabular-nums;width:56px}
+td.cnt{font-variant-numeric:tabular-nums;width:70px}
+tr:last-child td{border-bottom:0}
+.pill{display:inline-block;font-size:12px;font-weight:700;padding:2px 8px;border-radius:999px}
+.pill.ok{background:var(--ok-bg);color:var(--ok)}.pill.warn{background:var(--warn-bg);color:var(--warn)}.pill.bad{background:var(--bad-bg);color:var(--bad)}
+ol.steps{margin:0;padding-left:20px;display:grid;gap:4px;color:var(--muted)}
+ol.steps b{color:var(--ink)}
+
+/* Riwayat live */
+.live{display:inline-flex;align-items:center;gap:8px;font-weight:700;font-size:13px;color:var(--muted)}
+.live .dot{width:10px;height:10px;border-radius:50%;background:var(--used-ink)}
+.live.on{color:var(--ok)}
+.live.on .dot{background:var(--ok);box-shadow:0 0 0 0 var(--ok);animation:pulse 1.6s ease-out infinite}
+.live.off{color:var(--warn)} .live.off .dot{background:var(--warn)}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(30,138,76,.5)}100%{box-shadow:0 0 0 10px rgba(30,138,76,0)}}
+.rw-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:16px;align-items:start}
+.rw-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.rw-head h2{margin:0}
+.rw-latest{display:flex;align-items:center;gap:14px}
+.rw-latest .k{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.mini-ball{width:72px;height:72px;border-radius:50%;flex:none;display:grid;place-items:center;font-family:var(--display);font-weight:800;font-size:28px;color:var(--ball-ink);font-variant-numeric:tabular-nums;
+  background:radial-gradient(circle at 34% 28%,#fff6d6 0 10%,var(--ball) 40%,var(--ball-deep) 100%);box-shadow:inset -5px -7px 12px rgba(0,0,0,.18)}
+.mini-ball.pop{animation:land .6s cubic-bezier(.2,1.8,.4,1)}
+.rw2{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.rw2 li{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:12px;padding:8px 10px;min-width:0}
+.rw2 li.new{animation:fresh 1.6s ease-out}
+@keyframes fresh{0%{background:var(--warn-bg)}100%{background:transparent}}
+.rw2 .o{color:var(--muted);font-size:12px;font-weight:700;width:30px;flex:none;font-variant-numeric:tabular-nums}
+.rw2 .q{flex:1;min-width:0;font-weight:600;overflow-wrap:anywhere;white-space:pre-line}
+.rw2 .n{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:var(--ball);color:var(--ball-ink);font-family:var(--display);font-weight:700;font-size:14px;flex:none}
+.rw2 .n.hid{background:var(--used);color:var(--used-ink)}
+body.viewer .tabs a:not([data-view="riwayat"]){display:none}
+.login{max-width:420px;margin:24px auto 0;width:100%}
+.form{display:grid;gap:8px}
+.form label{font-weight:700;font-size:14px}
+.form input{font:inherit;padding:11px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);width:100%}
+.form button{margin-top:8px;justify-content:center;padding:12px}
+
+@media (prefers-reduced-motion:reduce){.live.on .dot,.mini-ball.pop,.rw2 li.new{animation:none}}
+@media (prefers-reduced-motion:reduce){.ball.rolling,.ball.land,.stage.done,.card.rolling .expr,.card.land,.answer .ans.shown{animation:none}}
+</style>
+</head>
+<body>
+<div class="topbar"><div class="in">
+  <div class="brand">Undian 1–25</div>
+  <nav class="tabs" aria-label="Halaman">
+    <a href="#tahap1" data-view="tahap1">Tahap 1</a>
+    <a href="#tahap2" data-view="tahap2">Tahap 2</a>
+    <a href="#admin" data-view="admin">Admin</a>
+    <a href="#riwayat" data-view="riwayat">Riwayat</a>
+  </nav>
+</div></div>
+
+<!-- ============ TAHAP 1 ============ -->
+<div class="wrap" id="view-tahap1">
+  <header>
+    <h1>Tahap 1 · Undian Angka</h1>
+    <div class="count">Sisa <b id="t1left">25</b> dari 25</div>
+  </header>
+  <div class="stage" id="t1stage">
+    <div class="ball empty" id="t1ball"><span id="t1num">?</span></div>
+    <div class="label" id="t1caption">Tekan tombol untuk mengundi</div>
+    <div class="actions"><button class="draw" id="t1draw" type="button">Undi Angka</button></div>
+  </div>
+  <section>
+    <h2>Riwayat Undian</h2>
+    <p class="empty-note" id="t1empty">Belum ada angka yang keluar.</p>
+    <ol class="hist1" id="t1hist"></ol>
+  </section>
+  <section>
+    <h2>Papan Angka</h2>
+    <div class="board" id="t1board"></div>
+  </section>
+</div>
+
+<!-- ============ TAHAP 2 ============ -->
+<div class="wrap" id="view-tahap2" hidden>
+  <header>
+    <h1>Tahap 2 · Soal Hitungan</h1>
+    <div class="count">Sisa <b id="t2left">25</b> dari 25</div>
+  </header>
+  <div class="stage" id="t2stage">
+    <div class="card" id="t2card">
+      <div class="tag" id="t2tag">Kerjakan × dan ÷ lebih dulu</div>
+      <div class="expr idle" id="t2expr">Tekan Undi Soal</div>
+      <div class="answer"><span class="eq">=</span><span class="ans" id="t2ans">?</span></div>
+    </div>
+    <div class="actions">
+      <button class="draw" id="t2draw" type="button">Undi Soal</button>
+      <button class="reveal" id="t2reveal" type="button" disabled>Lihat Jawaban</button>
+    </div>
+    <div class="label" id="t2source"></div>
+  </div>
+  <section>
+    <div class="row" style="justify-content:space-between;margin-bottom:12px">
+      <h2 style="margin:0">Riwayat Soal</h2>
+      <button class="ghost" type="button" id="t2histBtn" aria-expanded="false" aria-controls="t2histBox">Lihat Riwayat</button>
+    </div>
+    <div id="t2histBox" hidden>
+      <p class="empty-note" id="t2empty">Belum ada soal yang keluar.</p>
+      <ol class="hist2" id="t2hist"></ol>
+    </div>
+  </section>
+  <section>
+    <h2>Papan Jawaban</h2>
+    <div class="board" id="t2board"></div>
+    <p class="hint">Angka baru dicoret setelah jawabannya dibuka.</p>
+  </section>
+</div>
+
+<!-- ============ ADMIN ============ -->
+<div class="wrap" id="view-admin" hidden>
+  <header><h1>Admin</h1></header>
+
+  <div class="panel">
+    <h2>Status Undian</h2>
+    <div class="stats">
+      <div class="stat">
+        <div class="k">Tahap 1</div>
+        <div class="v" id="a1v">0 <small>/ 25 keluar</small></div>
+        <div class="row" id="a1act">
+          <a class="btn primary" href="#tahap1">Buka Tahap 1</a>
+          <button class="ghost" type="button" data-reset="1">Mulai Ulang</button>
+        </div>
+        <div class="confirm" id="a1conf" hidden><span>Hapus riwayat Tahap 1?</span><button class="danger" type="button" data-yes="1">Ya, hapus</button><button class="ghost" type="button" data-no="1">Batal</button></div>
+      </div>
+      <div class="stat">
+        <div class="k">Tahap 2</div>
+        <div class="v" id="a2v">0 <small>/ 25 keluar</small></div>
+        <div class="row" id="a2act">
+          <a class="btn primary" href="#tahap2">Buka Tahap 2</a>
+          <button class="ghost" type="button" data-reset="2">Mulai Ulang</button>
+        </div>
+        <div class="confirm" id="a2conf" hidden><span>Hapus riwayat Tahap 2?</span><button class="danger" type="button" data-yes="2">Ya, hapus</button><button class="ghost" type="button" data-no="2">Batal</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" id="logoutRow" hidden>
+    <h2>Akun Admin</h2>
+    <div class="row" style="justify-content:space-between">
+      <span>Masuk sebagai <b id="authEmail">-</b></span>
+      <button class="ghost" type="button" id="logoutBtn">Keluar</button>
+    </div>
+    <div class="msg" id="syncMsg" hidden></div>
+  </div>
+
+  <div class="panel">
+    <h2>Sumber Soal Tahap 2</h2>
+    <div class="seg" role="radiogroup">
+      <label><input type="radio" name="mode" id="modeAuto" value="auto"><div><b>Otomatis</b><span>Soal dibuat acak: 5 bilangan 1–99 dengan + − × ÷.</span></div></label>
+      <label><input type="radio" name="mode" id="modeUpload" value="upload"><div><b>Dari file upload</b><span>Pakai soal Anda. Angka yang belum punya soal tetap dibuat otomatis.</span></div></label>
+    </div>
+    <p class="muted" id="modeNote"></p>
+  </div>
+
+  <div class="panel">
+    <h2>Template &amp; Upload Soal</h2>
+    <ol class="steps">
+      <li><b>Unduh template</b> Excel. Isinya 25 baris contoh (satu per jawaban 1–25).</li>
+      <li>Ganti kolom <b>Soal</b> dengan soal Anda. Satu jawaban boleh punya lebih dari satu baris soal; nanti dipilih acak.</li>
+      <li><b>Upload</b> file kembali di sini (.xlsx atau .csv). Soal boleh berupa teks bebas dan tampil persis seperti yang ditulis; aplikasi tidak menghitung ulang, jadi pastikan sendiri kolom Jawaban sudah benar.</li>
+    </ol>
+    <div class="row">
+      <button class="primary" type="button" id="dlTemplate">Unduh Template (.xlsx)</button>
+      <button class="ghost" type="button" id="dlCsv">Unduh versi .csv</button>
+    </div>
+    <div class="msg" id="dlMsg" hidden></div>
+    <div class="drop" id="drop">
+      <b>Upload file soal</b>
+      <span class="muted">Tarik file ke sini atau pilih dari perangkat</span>
+      <input type="file" id="fileIn" accept=".xlsx,.xls,.csv">
+    </div>
+    <div class="msg" id="upMsg" hidden></div>
+    <div class="tablewrap" id="rejWrap" hidden>
+      <table><thead><tr><th>Baris</th><th>Jawaban</th><th>Soal</th><th>Masalah</th></tr></thead><tbody id="rejBody"></tbody></table>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="row" style="justify-content:space-between">
+      <h2 style="margin:0">Bank Soal Upload</h2>
+      <div class="row" id="bankAct"><button class="ghost" type="button" id="clearBank">Hapus Soal Upload</button></div>
+      <div class="confirm" id="bankConf" hidden><span>Hapus semua soal upload?</span><button class="danger" type="button" id="bankYes">Ya, hapus</button><button class="ghost" type="button" id="bankNo">Batal</button></div>
+    </div>
+    <p class="muted" id="bankInfo">Belum ada soal yang di-upload.</p>
+    <div class="tablewrap">
+      <table><thead><tr><th>Jawaban</th><th>Jumlah</th><th>Soal</th></tr></thead><tbody id="bankBody"></tbody></table>
+    </div>
+  </div>
+</div>
+
+<!-- ============ LOGIN ADMIN ============ -->
+<div class="wrap" id="view-login" hidden>
+  <div class="panel login">
+    <h1>Masuk Admin</h1>
+    <p class="muted">Halaman undian hanya untuk panitia. Penonton cukup membuka halaman <b>/riwayat</b>.</p>
+    <form id="loginForm" class="form">
+      <label for="loginEmail">Email</label>
+      <input id="loginEmail" type="email" autocomplete="username" required>
+      <label for="loginPass">Kata sandi</label>
+      <input id="loginPass" type="password" autocomplete="current-password" required>
+      <button class="primary" id="loginBtn" type="submit">Masuk</button>
+    </form>
+    <div class="msg" id="loginMsg" hidden></div>
+  </div>
+</div>
+
+<!-- ============ RIWAYAT (LIVE) ============ -->
+<div class="wrap" id="view-riwayat" hidden>
+  <header>
+    <h1>Riwayat Undian</h1>
+    <div class="live" id="liveState"><span class="dot"></span><span id="liveText">Menyambungkan…</span></div>
+  </header>
+  <p class="muted" id="liveNote" hidden></p>
+
+  <div class="rw-grid">
+    <div class="panel">
+      <div class="rw-head"><h2>Tahap 1 · Angka</h2><span class="chip" id="rw1count">0 / 25</span></div>
+      <div class="rw-latest">
+        <div class="mini-ball" id="rw1last">–</div>
+        <div><div class="k">Terakhir keluar</div><div class="muted" id="rw1lastNote">Belum ada</div></div>
+      </div>
+      <ol class="hist1" id="rw1list"></ol>
+    </div>
+    <div class="panel">
+      <div class="rw-head"><h2>Tahap 2 · Soal</h2><span class="chip" id="rw2count">0 / 25</span></div>
+      <ol class="rw2" id="rw2list"></ol>
+      <p class="empty-note" id="rw2empty">Belum ada soal yang keluar.</p>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+  /* ====== PENGATURAN SUPABASE — isi dari Project Settings → API ====== */
+  var SUPABASE_URL = 'https://ktlqzrbgkxwxzodslrzm.supabase.co';
+  var SUPABASE_ANON_KEY = 'sb_publishable_MQumrzXzVsAFwzCAywtG5w_l5P1WxGT';
+</script>
+<script>
+(function(){
+  var MAX=25;
+  var $=function(id){return document.getElementById(id)};
+  function load(k,d){try{var v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}}
+  function store(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+  function rnd(n){ if(window.crypto&&crypto.getRandomValues){var a=new Uint32Array(1);crypto.getRandomValues(a);return a[0]%n;} return Math.floor(Math.random()*n); }
+  function ri(a,b){return a+rnd(b-a+1)}
+  function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+  function reduceMotion(){return window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches}
+  // jeda animasi: total 1 detik, makin lama makin lambat
+  function gaps(steps){var g=[],s=0,i;for(i=0;i<steps;i++){var t=i/(steps-1);g.push(1+6*t*t);s+=g[i]}for(i=0;i<steps;i++)g[i]=g[i]*1000/s;return g}
+
+  /* ---------- state ---------- */
+  var t1=load('undian-1-25',[]); if(!Array.isArray(t1)) t1=[];
+  t1=t1.filter(function(n){return n>=1&&n<=MAX});
+  var t2=load('undian-tahap-2',[]); if(!Array.isArray(t2)) t2=[];
+  t2=t2.filter(function(d){return d&&d.n>=1&&d.n<=MAX&&typeof d.q==='string'});
+  var cfg=load('undian-config',{mode:'auto',bank:{},file:'',at:''});
+  if(!cfg.bank) cfg.bank={};
+  function saveT1(){store('undian-1-25',t1);pushLive('tahap1');renderRiwayat()}
+  function saveT2(){store('undian-tahap-2',t2);pushLive('tahap2');renderRiwayat()}
+
+  /* ---------- sinkron riwayat realtime (db) ---------- */
+  var db=null, canWrite=false, viewer=false, live={tahap1:null,tahap2:null}, liveOk=false;
+  var pushing={}, dirty={};
+  function liveBody(k){
+    return k==='tahap1' ? {drawn:t1.slice(),at:Date.now()}
+      : {items:t2.map(function(d){return {n:d.n,q:d.q,shown:!!d.shown}}),at:Date.now()};
+  }
+  // satu tulisan per dokumen pada satu waktu; perubahan beruntun digabung
+  function pushLive(k){
+    if(!db||!canWrite) return;
+    if(pushing[k]){dirty[k]=true;return}
+    pushing[k]=true; dirty[k]=false;
+    db.from(TABLE).upsert({id:k,data:liveBody(k),updated_at:new Date().toISOString()}).then(function(res){
+      if(res.error) setSync('bad','Gagal menyimpan ke server: '+res.error.message);
+      else setSync('ok','Tersimpan ke server · '+stamp());
+    }).then(function(){pushing[k]=false; if(dirty[k]) pushLive(k)});
+  }
+  function saveCfg(){store('undian-config',cfg)}
+
+  /* ---------- pembuat soal otomatis ---------- */
+  // 5 bilangan (1–99) dengan + − × ÷ masing-masing sekali, aturan kali/bagi dulu
+  function autoQuestion(n){
+    var OPS=['+','-','*','/'];
+    for(var attempt=0;attempt<5000;attempt++){
+      var ops=OPS.slice();
+      for(var i=3;i>0;i--){var j=rnd(i+1),t=ops[i];ops[i]=ops[j];ops[j]=t;}
+      var terms=[{sign:1,ops:[]}];
+      ops.forEach(function(o){ if(o==='+'||o==='-') terms.push({sign:o==='+'?1:-1,ops:[]}); else terms[terms.length-1].ops.push(o); });
+      var singles=[];terms.forEach(function(t,i){if(!t.ops.length)singles.push(i)});
+      var free=singles[rnd(singles.length)], ok=true, rest=0;
+      for(var ti=0;ti<terms.length&&ok;ti++){
+        var tm=terms[ti]; if(ti===free) continue;
+        var nums=[], val;
+        if(!tm.ops.length){ val=ri(2,99); nums=[val]; }
+        else{
+          if(tm.ops[0]==='/'){ var c=ri(2,12), q=ri(2,Math.floor(99/c)); nums=[q*c]; val=q*c; }
+          else{ val=ri(2,20); nums=[val]; }
+          for(var k=0;k<tm.ops.length&&ok;k++){
+            if(tm.ops[k]==='*'){ var b=ri(2,9); val*=b; nums.push(b); }
+            else{ var ds=[];for(var d=2;d<=Math.min(val-1,99);d++) if(val%d===0) ds.push(d);
+              if(!ds.length){ok=false;break;} var d2=ds[rnd(ds.length)]; val/=d2; nums.push(d2); }
+          }
+        }
+        tm.nums=nums; tm.val=val; rest+=tm.sign*val;
+      }
+      if(!ok) continue;
+      var f=terms[free].sign*(n-rest);
+      if(f<1||f>99) continue;
+      terms[free].nums=[f]; terms[free].val=f;
+      var run=0,neg=false;terms.forEach(function(t){run+=t.sign*t.val;if(run<0)neg=true});
+      if(neg) continue;
+      var s='';
+      terms.forEach(function(t,ti){
+        if(ti>0) s+=(t.sign>0?' + ':' − ');
+        s+=t.nums[0];
+        for(var k=0;k<t.ops.length;k++) s+=(t.ops[k]==='*'?' × ':' ÷ ')+t.nums[k+1];
+      });
+      return s;
+    }
+    return (n+1)+' − 1';
+  }
+
+  /* ---------- penghitung soal (untuk cek upload) ---------- */
+  function normalizeQ(s){
+    return String(s).trim().replace(/\s+/g,' ')
+      .replace(/[*xX]/g,'×').replace(/[:\/]/g,'÷').replace(/[–—-]/g,'−')
+      .replace(/\s*([+−×÷])\s*/g,' $1 ').replace(/\(\s*/g,'(').replace(/\s*\)/g,')').trim();
+  }
+  function evaluate(s){
+    var src=String(s).replace(/×|x|X/g,'*').replace(/÷|:/g,'/').replace(/[−–—]/g,'-').replace(/,/g,'.');
+    var toks=src.match(/\d+(\.\d+)?|[+\-*\/()]|\S/g); if(!toks) throw 0;
+    var pos=0;
+    function peek(){return toks[pos]} function next(){return toks[pos++]}
+    function expr(){var v=term();while(peek()==='+'||peek()==='-'){var o=next(),r=term();v=o==='+'?v+r:v-r}return v}
+    function term(){var v=factor();while(peek()==='*'||peek()==='/'){var o=next(),r=factor();if(o==='/'&&r===0)throw 0;v=o==='*'?v*r:v/r}return v}
+    function factor(){var t=next();if(t==='-')return -factor();if(t==='('){var v=expr();if(next()!==')')throw 0;return v}
+      if(t!=null&&/^\d/.test(t))return parseFloat(t);throw 0}
+    var v=expr(); if(pos!==toks.length) throw 0; return v;
+  }
+
+  function questionFor(n){
+    if(cfg.mode==='upload'){
+      var list=cfg.bank[n]||[];
+      if(list.length){
+        var usedQ=t2.map(function(d){return d.q});
+        var fresh=list.filter(function(q){return usedQ.indexOf(q)<0});
+        var pool=fresh.length?fresh:list;
+        return {q:pool[rnd(pool.length)],src:'upload'};
+      }
+    }
+    return {q:autoQuestion(n),src:'auto'};
+  }
+
+  /* ---------- papan ---------- */
+  function buildBoard(el,prefix){for(var i=1;i<=MAX;i++){var c=document.createElement('div');c.className='cell';c.id=prefix+i;c.textContent=i;el.appendChild(c)}}
+  buildBoard($('t1board'),'a');buildBoard($('t2board'),'b');
+
+  /* ---------- TAHAP 1 ---------- */
+  var rolling1=false;
+  function renderT1(){
+    var last=t1[t1.length-1], left=MAX-t1.length;
+    $('t1left').textContent=left;
+    if(!rolling1){
+      $('t1ball').classList.toggle('empty',!last);
+      $('t1num').textContent=last||'?';
+      $('t1caption').textContent= left===0?'Semua angka sudah keluar':(last?'Undian ke-'+t1.length:'Tekan tombol untuk mengundi');
+      $('t1draw').disabled=left===0; $('t1draw').textContent=left===0?'Selesai':'Undi Angka';
+    }
+    for(var i=1;i<=MAX;i++) $('a'+i).className='cell'+(t1.indexOf(i)>-1?' out':'')+(i===last?' last':'');
+    var h=$('t1hist');h.innerHTML='';
+    t1.forEach(function(n,idx){var li=document.createElement('li');li.innerHTML='<span class="n">'+n+'</span><span class="o">ke-'+(idx+1)+'</span>';h.appendChild(li)});
+    $('t1empty').hidden=t1.length>0;
+  }
+  $('t1draw').addEventListener('click',function(){
+    if(rolling1) return;
+    var pool=[];for(var i=1;i<=MAX;i++) if(t1.indexOf(i)<0) pool.push(i);
+    if(!pool.length) return;
+    var pick=pool[rnd(pool.length)], ball=$('t1ball'), num=$('t1num'), stage=$('t1stage');
+    rolling1=true; $('t1draw').disabled=true; $('t1draw').textContent='Mengacak…'; $('t1caption').textContent='Mengacak…';
+    ball.classList.remove('empty','land'); ball.classList.add('rolling'); stage.classList.remove('done');
+    var g=gaps(reduceMotion()?4:18), step=0, prev=null;
+    function clear(){var f=$('t1board').querySelectorAll('.flash');for(var k=0;k<f.length;k++)f[k].classList.remove('flash')}
+    (function tick(){
+      var show=pool.length>1?pool[rnd(pool.length)]:pick;
+      if(pool.length>1) while(show===prev) show=pool[rnd(pool.length)];
+      prev=show; num.textContent=show; clear(); $('a'+show).classList.add('flash');
+      var d=g[step++];
+      if(step<g.length){setTimeout(tick,d);return}
+      setTimeout(function(){
+        clear(); ball.classList.remove('rolling'); rolling1=false;
+        t1.push(pick); saveT1(); renderT1(); renderAdmin();
+        void ball.offsetWidth; ball.classList.add('land'); void stage.offsetWidth; stage.classList.add('done');
+      },d);
+    })();
+  });
+
+  /* ---------- TAHAP 2 ---------- */
+  var rolling2=false;
+  // ukuran huruf menyesuaikan panjang soal (operasi pendek vs soal cerita)
+  function setExpr(text){
+    var el=$('t2expr'), len=String(text).length;
+    el.textContent=text;
+    el.classList.toggle('long',len>34&&len<=110);
+    el.classList.toggle('xlong',len>110);
+  }
+  function usedT2(n){for(var i=0;i<t2.length;i++) if(t2[i].n===n) return true; return false}
+  function renderT2(){
+    var last=t2[t2.length-1], left=MAX-t2.length;
+    $('t2left').textContent=left;
+    if(!rolling2){
+      var expr=$('t2expr'), ans=$('t2ans');
+      if(last){ expr.classList.remove('idle'); setExpr(last.q); $('t2tag').textContent='Soal ke-'+t2.length+(last.src==='upload'?'':' · × dan ÷ lebih dulu');
+        ans.textContent=last.shown?last.n:'?'; ans.classList.toggle('shown',!!last.shown); }
+      else{ expr.classList.add('idle'); setExpr('Tekan Undi Soal'); $('t2tag').textContent=cfg.mode==='upload'?'Soal hitungan':'Kerjakan × dan ÷ lebih dulu'; ans.textContent='?'; ans.classList.remove('shown'); }
+      $('t2reveal').disabled=!last||last.shown;
+      $('t2draw').disabled=left===0; $('t2draw').textContent=left===0?'Selesai':'Undi Soal';
+    }
+    var cnt=0;for(var k in cfg.bank) if(cfg.bank[k]&&cfg.bank[k].length) cnt++;
+    $('t2source').textContent = cfg.mode==='upload' ? 'Sumber soal: file upload ('+cnt+' dari 25 angka punya soal)' : 'Sumber soal: otomatis';
+    for(var i=1;i<=MAX;i++) $('b'+i).className='cell';
+    t2.forEach(function(d){ if(d.shown) $('b'+d.n).classList.add('out') });
+    if(last&&last.shown) $('b'+last.n).classList.add('last');
+    var h=$('t2hist'); h.innerHTML='';
+    t2.forEach(function(d,idx){
+      var li=document.createElement('li');
+      li.innerHTML='<span class="o">ke-'+(idx+1)+'</span><span class="q"></span><span class="n'+(d.shown?'':' hid')+'">'+(d.shown?d.n:'?')+'</span>';
+      li.querySelector('.q').textContent=d.q+' =';
+      h.appendChild(li);
+    });
+    $('t2empty').hidden=t2.length>0;
+    var open=!$('t2histBox').hidden;
+    $('t2histBtn').textContent=(open?'Sembunyikan Riwayat':'Lihat Riwayat')+(t2.length?' ('+t2.length+')':'');
+  }
+  // riwayat soal selalu tersembunyi saat halaman dibuka
+  $('t2histBtn').addEventListener('click',function(){
+    var box=$('t2histBox'); box.hidden=!box.hidden;
+    this.setAttribute('aria-expanded',String(!box.hidden)); renderT2();
+  });
+  $('t2draw').addEventListener('click',function(){
+    if(rolling2) return;
+    var pool=[];for(var i=1;i<=MAX;i++) if(!usedT2(i)) pool.push(i);
+    if(!pool.length) return;
+    if(t2.length) t2[t2.length-1].shown=true; // jawaban sebelumnya otomatis dibuka
+    var pick=pool[rnd(pool.length)], chosen=questionFor(pick);
+    var card=$('t2card'), expr=$('t2expr'), ans=$('t2ans');
+    rolling2=true; $('t2draw').disabled=true; $('t2draw').textContent='Mengacak…'; $('t2reveal').disabled=true;
+    $('t2tag').textContent='Mengacak soal…'; expr.classList.remove('idle'); ans.textContent='?'; ans.classList.remove('shown');
+    card.classList.remove('land'); card.classList.add('rolling');
+    var g=gaps(reduceMotion()?4:16), step=0;
+    (function tick(){
+      setExpr(questionFor(pool[rnd(pool.length)]).q);
+      var d=g[step++];
+      if(step<g.length){setTimeout(tick,d);return}
+      setTimeout(function(){
+        card.classList.remove('rolling'); rolling2=false;
+        t2.push({n:pick,q:chosen.q,shown:false,src:chosen.src}); saveT2(); renderT2(); renderAdmin();
+        void card.offsetWidth; card.classList.add('land');
+      },d);
+    })();
+  });
+  $('t2reveal').addEventListener('click',function(){
+    var last=t2[t2.length-1]; if(!last||last.shown||rolling2) return;
+    last.shown=true; saveT2(); renderT2();
+  });
+
+  /* ---------- ADMIN ---------- */
+  function renderAdmin(){
+    $('a1v').innerHTML=t1.length+' <small>/ 25 keluar</small>';
+    $('a2v').innerHTML=t2.length+' <small>/ 25 keluar</small>';
+    $('modeAuto').checked=cfg.mode!=='upload'; $('modeUpload').checked=cfg.mode==='upload';
+    var have=0,total=0,missing=[];
+    for(var n=1;n<=MAX;n++){var l=cfg.bank[n]||[];total+=l.length;if(l.length)have++;else missing.push(n)}
+    $('modeNote').textContent = cfg.mode==='upload'
+      ? (total? (missing.length? 'Angka tanpa soal upload ('+missing.join(', ')+') memakai soal otomatis.' : 'Semua angka 1–25 punya soal upload.') : 'Belum ada soal upload, jadi semua soal masih dibuat otomatis.')
+      : 'Perubahan berlaku untuk undian berikutnya.';
+    $('bankInfo').textContent = total ? (total+' soal untuk '+have+' dari 25 angka'+(cfg.file?' · dari '+cfg.file:'')+(cfg.at?' · '+cfg.at:'')) : 'Belum ada soal yang di-upload.';
+    $('clearBank').disabled=!total;
+    var rows='';
+    for(n=1;n<=MAX;n++){
+      var list=cfg.bank[n]||[];
+      rows+='<tr><td class="num">'+n+'</td><td class="cnt">'+(list.length?list.length:'<span class="pill warn">0</span>')+'</td><td>'+(list.length?list.map(esc).join('<br>'):'<span class="muted">Otomatis</span>')+'</td></tr>';
+    }
+    $('bankBody').innerHTML=rows;
+  }
+  [1,2].forEach(function(k){
+    document.querySelector('[data-reset="'+k+'"]').addEventListener('click',function(){
+      if((k===1?t1:t2).length===0) return; $('a'+k+'act').hidden=true; $('a'+k+'conf').hidden=false;});
+    document.querySelector('[data-no="'+k+'"]').addEventListener('click',function(){$('a'+k+'act').hidden=false;$('a'+k+'conf').hidden=true;});
+    document.querySelector('[data-yes="'+k+'"]').addEventListener('click',function(){
+      if(k===1){if(rolling1)return;t1=[];saveT1();renderT1()}else{if(rolling2)return;t2=[];saveT2();renderT2()}
+      $('a'+k+'act').hidden=false;$('a'+k+'conf').hidden=true;renderAdmin();});
+  });
+  ['modeAuto','modeUpload'].forEach(function(id){$(id).addEventListener('change',function(e){cfg.mode=e.target.value;saveCfg();renderAdmin();renderT2()})});
+  $('clearBank').addEventListener('click',function(){$('bankAct').hidden=true;$('bankConf').hidden=false});
+  $('bankNo').addEventListener('click',function(){$('bankAct').hidden=false;$('bankConf').hidden=true});
+  $('bankYes').addEventListener('click',function(){cfg.bank={};cfg.file='';cfg.at='';saveCfg();$('bankAct').hidden=false;$('bankConf').hidden=true;$('rejWrap').hidden=true;$('upMsg').hidden=true;renderAdmin();renderT2()});
+
+  /* ---------- unduh template ---------- */
+  function msg(el,cls,text){el.className='msg '+cls;el.textContent=text;el.hidden=false}
+  function templateRows(){var r=[];for(var n=1;n<=MAX;n++) r.push({No:n,Jawaban:n,Soal:autoQuestion(n)});return r}
+  var dlCap=null;
+  if(window.claude&&typeof window.claude.use==='function'){ window.claude.use('downloads').then(function(d){dlCap=d}).catch(function(){}); }
+  function offer(filename,data){
+    if(dlCap){
+      return dlCap.save({filename:filename,data:data}).then(function(){msg($('dlMsg'),'ok',filename+' siap disimpan.')})
+        .catch(function(e){var c=e&&e.code; msg($('dlMsg'),c==='declined'?'warn':'bad', c==='declined'?'Unduhan dibatalkan.':c==='rate_limited'?'Masih ada konfirmasi unduhan yang terbuka. Coba lagi sebentar.':'Unduhan tidak bisa dilakukan di tampilan ini.')});
+    }
+    if(window.claude){ msg($('dlMsg'),'bad','Unduhan belum tersedia di tampilan ini. Coba muat ulang halaman, atau izinkan unduhan lewat menu izin.'); return; }
+    var blob=data instanceof Blob?data:new Blob([data]); var url=URL.createObjectURL(blob);
+    var a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){URL.revokeObjectURL(url)},2000); msg($('dlMsg'),'ok',filename+' diunduh.');
+  }
+  $('dlTemplate').addEventListener('click',function(){
+    if(!window.XLSX){msg($('dlMsg'),'bad','Pustaka Excel belum termuat. Pakai versi .csv, atau periksa koneksi internet.');return}
+    var wb=XLSX.utils.book_new();
+    var ws=XLSX.utils.json_to_sheet(templateRows(),{header:['No','Jawaban','Soal']});
+    ws['!cols']=[{wch:5},{wch:10},{wch:40}];
+    XLSX.utils.book_append_sheet(wb,ws,'Soal');
+    var info=XLSX.utils.aoa_to_sheet([
+      ['Petunjuk pengisian'],[''],
+      ['1. Isi kolom Jawaban dengan angka 1–25 dan kolom Soal dengan operasi hitungnya.'],
+      ['2. Satu jawaban boleh punya beberapa baris soal; saat undian dipilih acak.'],
+      ['3. Soal boleh berupa operasi hitung atau teks bebas (misalnya soal cerita). Soal tampil persis seperti yang ditulis.'],
+      ['4. Soal tidak dihitung ulang oleh aplikasi. Pastikan sendiri jawaban di kolom Jawaban sudah benar.'],
+      ['5. Kolom No tidak wajib. Jangan ubah judul kolom Jawaban dan Soal.']
+    ]); info['!cols']=[{wch:100}];
+    XLSX.utils.book_append_sheet(wb,info,'Petunjuk');
+    var buf=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+    offer('template-soal-tahap-2.xlsx',new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+  });
+  $('dlCsv').addEventListener('click',function(){
+    var lines=['No,Jawaban,Soal'];
+    templateRows().forEach(function(r){lines.push(r.No+','+r.Jawaban+',"'+r.Soal.replace(/"/g,'""')+'"')});
+    offer('template-soal-tahap-2.csv','﻿'+lines.join('\r\n'));
+  });
+
+  /* ---------- upload ---------- */
+  function parseCsv(text){
+    var rows=[],row=[],cur='',q=false;text=text.replace(/^﻿/,'');
+    var delim=(text.split('\n')[0].split(';').length>text.split('\n')[0].split(',').length)?';':',';
+    for(var i=0;i<text.length;i++){var ch=text[i];
+      if(q){ if(ch==='"'){ if(text[i+1]==='"'){cur+='"';i++} else q=false } else cur+=ch; }
+      else if(ch==='"') q=true; else if(ch===delim){row.push(cur);cur=''} else if(ch==='\n'){row.push(cur);rows.push(row);row=[];cur=''} else if(ch!=='\r') cur+=ch;
+    }
+    if(cur!==''||row.length){row.push(cur);rows.push(row)}
+    return rows;
+  }
+  function handleRows(rows,fileName){
+    if(!rows.length){msg($('upMsg'),'bad','File kosong.');return}
+    var head=rows[0].map(function(h){return String(h==null?'':h).trim().toLowerCase()});
+    var ci=head.indexOf('jawaban'), cq=head.indexOf('soal');
+    if(ci<0||cq<0){msg($('upMsg'),'bad','Kolom "Jawaban" dan "Soal" tidak ditemukan di baris pertama. Pakai template yang disediakan.');$('rejWrap').hidden=true;return}
+    var bank={},accepted=0,rej=[];
+    for(var r=1;r<rows.length;r++){
+      var row=rows[r]||[], a=row[ci], q=row[cq];
+      var aS=String(a==null?'':a).trim(), qS=String(q==null?'':q).trim();
+      if(!aS&&!qS) continue;
+      var n=Number(aS), problem='';
+      if(!/^\d+$/.test(aS)||n<1||n>MAX) problem='Jawaban harus angka 1–25';
+      else if(!qS) problem='Soal kosong';
+      if(problem){rej.push({r:r+1,a:aS,q:qS,p:problem});continue}
+      // soal disimpan apa adanya (boleh teks bebas); kebenaran jawaban divalidasi panitia sendiri
+      var nq=qS.replace(/\r\n?/g,'\n').replace(/[ \t]+/g,' ').replace(/\n{3,}/g,'\n\n');
+      bank[n]=bank[n]||[]; if(bank[n].indexOf(nq)<0){bank[n].push(nq);accepted++}
+    }
+    if(!accepted){msg($('upMsg'),'bad','Tidak ada soal yang valid di file ini. Bank soal lama tidak diubah.');}
+    else{
+      cfg.bank=bank; cfg.file=fileName; var d=new Date(); cfg.at=d.toLocaleDateString('id-ID')+' '+d.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'});
+      cfg.mode='upload'; saveCfg();
+      var have=Object.keys(bank).length;
+      msg($('upMsg'),rej.length?'warn':'ok', accepted+' soal diterima untuk '+have+' dari 25 angka'+(rej.length?'; '+rej.length+' baris ditolak (lihat tabel).':'.')+' Sumber soal Tahap 2 diubah ke "Dari file upload".');
+    }
+    var rb='';rej.forEach(function(x){rb+='<tr><td>'+x.r+'</td><td>'+esc(x.a)+'</td><td>'+esc(x.q)+'</td><td><span class="pill bad">'+esc(x.p)+'</span></td></tr>'});
+    $('rejBody').innerHTML=rb; $('rejWrap').hidden=!rej.length;
+    renderAdmin(); renderT2();
+  }
+  function readFile(file){
+    if(!file) return;
+    var name=file.name||'file', ext=name.split('.').pop().toLowerCase(), fr=new FileReader();
+    if(ext==='csv'){ fr.onload=function(){handleRows(parseCsv(fr.result),name)}; fr.readAsText(file); }
+    else if(ext==='xlsx'||ext==='xls'){
+      if(!window.XLSX){msg($('upMsg'),'bad','Pustaka Excel belum termuat. Simpan file sebagai .csv lalu upload lagi.');return}
+      fr.onload=function(){try{var wb=XLSX.read(new Uint8Array(fr.result),{type:'array'});var ws=wb.Sheets['Soal']||wb.Sheets[wb.SheetNames[0]];
+        handleRows(XLSX.utils.sheet_to_json(ws,{header:1,defval:'',raw:false}),name)}catch(e){msg($('upMsg'),'bad','File Excel tidak bisa dibaca. Pastikan formatnya .xlsx.')}};
+      fr.readAsArrayBuffer(file);
+    } else msg($('upMsg'),'bad','Format file harus .xlsx, .xls, atau .csv.');
+  }
+  $('fileIn').addEventListener('change',function(e){readFile(e.target.files[0]);e.target.value=''});
+  var drop=$('drop');
+  ['dragenter','dragover'].forEach(function(t){drop.addEventListener(t,function(e){e.preventDefault();drop.classList.add('over')})});
+  ['dragleave','drop'].forEach(function(t){drop.addEventListener(t,function(e){e.preventDefault();drop.classList.remove('over')})});
+  drop.addEventListener('drop',function(e){if(e.dataTransfer&&e.dataTransfer.files[0]) readFile(e.dataTransfer.files[0])});
+
+  /* ---------- navigasi ---------- */
+  /* ---------- halaman riwayat ---------- */
+  var lastSeen={t1:null,t2:-1};
+  function renderRiwayat(){
+    var src1 = live.tahap1 ? live.tahap1.drawn||[] : (db?[]:t1);
+    var src2 = live.tahap2 ? live.tahap2.items||[] : (db?[]:t2);
+    var last=src1[src1.length-1];
+    $('rw1count').textContent=src1.length+' / 25';
+    var mb=$('rw1last'); mb.textContent=last||'–';
+    if(last&&lastSeen.t1!==null&&last!==lastSeen.t1){mb.classList.remove('pop');void mb.offsetWidth;mb.classList.add('pop')}
+    lastSeen.t1=last||0;
+    $('rw1lastNote').textContent=last?'Undian ke-'+src1.length:'Belum ada';
+    var h=$('rw1list'); h.innerHTML='';
+    src1.slice().reverse().forEach(function(n,i){var li=document.createElement('li');li.innerHTML='<span class="n">'+n+'</span><span class="o">ke-'+(src1.length-i)+'</span>';h.appendChild(li)});
+    $('rw2count').textContent=src2.length+' / 25';
+    var h2=$('rw2list'); h2.innerHTML='';
+    src2.slice().reverse().forEach(function(d,i){
+      var idx=src2.length-i, li=document.createElement('li');
+      if(lastSeen.t2>=0&&idx>lastSeen.t2) li.className='new';
+      li.innerHTML='<span class="o">ke-'+idx+'</span><span class="q"></span><span class="n'+(d.shown?'':' hid')+'">'+(d.shown?esc(d.n):'?')+'</span>';
+      li.querySelector('.q').textContent=d.q+' =';
+      h2.appendChild(li);
+    });
+    lastSeen.t2=src2.length;
+    $('rw2empty').hidden=src2.length>0;
+  }
+  function setLive(state,text){var el=$('liveState');el.className='live '+state;$('liveText').textContent=text}
+  function stamp(){var d=new Date();return d.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}
+
+  /* ---------- Supabase ---------- */
+  var TABLE='undian_live', authed=false, adminEmail='';
+  var CONFIG_OK = /^https:\/\/.+/.test(SUPABASE_URL) && SUPABASE_ANON_KEY.length>20;
+  viewer = /\/riwayat\/?$/.test(location.pathname);
+  if(viewer) document.body.classList.add('viewer');
+  function setSync(cls,text){var el=$('syncMsg'); if(!el) return; el.className='msg '+cls; el.textContent=text; el.hidden=false}
+  function applyRow(row){
+    if(!row||(row.id!=='tahap1'&&row.id!=='tahap2')) return;
+    live[row.id]=row.data||{};
+    setLive('on','Langsung · '+stamp());
+    renderRiwayat();
+  }
+  // setelah login: pulihkan dari server bila lokal kosong, atau unggah data lokal bila server kosong
+  function syncAfterLogin(){
+    db.from(TABLE).select('id,data').then(function(res){
+      if(res.error){setSync('bad','Tidak bisa membaca server: '+res.error.message);return}
+      var rows={}; (res.data||[]).forEach(function(r){rows[r.id]=r.data||{}});
+      var s1=(rows.tahap1&&rows.tahap1.drawn)||[], s2=(rows.tahap2&&rows.tahap2.items)||[];
+      if(!t1.length&&s1.length){t1=s1.slice();store('undian-1-25',t1);renderT1()} else if(t1.length&&!s1.length) pushLive('tahap1');
+      if(!t2.length&&s2.length){t2=s2.map(function(d){return {n:d.n,q:d.q,shown:d.shown}});store('undian-tahap-2',t2);renderT2()} else if(t2.length&&!s2.length) pushLive('tahap2');
+      renderAdmin(); setSync('ok','Tersambung ke server');
+    });
+  }
+  function setAuth(session){
+    authed=!!session; canWrite=authed; adminEmail=session&&session.user?session.user.email||'':'';
+    $('authEmail').textContent=adminEmail||'-';
+    if(authed) syncAfterLogin();
+    show(currentView);
+  }
+  if(CONFIG_OK && window.supabase){
+    db=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+    db.from(TABLE).select('id,data').then(function(res){
+      if(res.error){setLive('off','Tidak tersambung');$('liveNote').hidden=false;$('liveNote').textContent='Gagal membaca data: '+res.error.message;return}
+      (res.data||[]).forEach(applyRow); if(!(res.data||[]).length){setLive('on','Langsung · '+stamp());renderRiwayat()}
+    });
+    db.channel('undian-live').on('postgres_changes',{event:'*',schema:'public',table:TABLE},function(p){applyRow(p.new)})
+      .subscribe(function(status){
+        if(status==='SUBSCRIBED') setLive('on','Langsung · '+stamp());
+        else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'||status==='CLOSED') setLive('off','Terputus · mencoba lagi…');
+      });
+    if(!viewer){
+      db.auth.getSession().then(function(r){setAuth(r.data&&r.data.session)});
+      db.auth.onAuthStateChange(function(ev,session){ if(ev==='SIGNED_IN'||ev==='SIGNED_OUT') setAuth(session) });
+    }
+  } else {
+    setLive('off', CONFIG_OK?'Pustaka Supabase gagal dimuat':'Supabase belum diatur');
+    $('liveNote').hidden=false;
+    $('liveNote').textContent = CONFIG_OK ? 'Periksa koneksi internet lalu muat ulang halaman.' : 'Isi SUPABASE_URL dan SUPABASE_ANON_KEY di bagian atas kode. Sementara itu riwayat hanya menampilkan undian di perangkat ini.';
+  }
+
+  $('loginForm').addEventListener('submit',function(e){
+    e.preventDefault();
+    var btn=$('loginBtn'); btn.disabled=true; btn.textContent='Masuk…'; $('loginMsg').hidden=true;
+    db.auth.signInWithPassword({email:$('loginEmail').value.trim(),password:$('loginPass').value}).then(function(r){
+      btn.disabled=false; btn.textContent='Masuk';
+      if(r.error){var m=$('loginMsg');m.className='msg bad';m.textContent='Email atau kata sandi salah.';m.hidden=false;}
+      else $('loginPass').value='';
+    });
+  });
+  $('logoutBtn').addEventListener('click',function(){ db&&db.auth.signOut(); });
+
+  var VIEWS=['tahap1','tahap2','admin','riwayat'];
+  var currentView='tahap1';
+  function show(v){
+    if(viewer) v='riwayat';
+    if(VIEWS.indexOf(v)<0) v='tahap1';
+    currentView=v;
+    var gate = !viewer && db && !authed && v!=='riwayat';
+    VIEWS.forEach(function(x){$('view-'+x).hidden=gate||x!==v});
+    $('view-login').hidden=!gate;
+    $('logoutRow').hidden=!(db&&authed);
+    document.querySelectorAll('.tabs a').forEach(function(a){if(a.dataset.view===v)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current')});
+    try{localStorage.setItem('undian-view',v)}catch(e){}
+    if(v==='admin') renderAdmin();
+    if(v==='riwayat') renderRiwayat();
+  }
+  window.addEventListener('hashchange',function(){show(location.hash.slice(1))});
+  var startView=location.hash.slice(1); if(VIEWS.indexOf(startView)<0){try{startView=localStorage.getItem('undian-view')}catch(e){}}
+  renderT1(); renderT2(); renderAdmin(); show(startView);
+})();
+</script>
+
+</body>
+</html>
