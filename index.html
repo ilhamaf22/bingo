@@ -421,7 +421,18 @@ body.viewer .tabs a:not([data-view="riwayat"]){display:none}
       else setSync('ok','Tersimpan ke server · '+stamp());
     }).then(function(){pushing[k]=false; if(dirty[k]) pushLive(k)});
   }
-  function saveCfg(){store('undian-config',cfg)}
+  // bank soal disimpan lokal + ke server (hanya admin yang bisa membaca)
+  function saveCfg(){cfg.savedAt=Date.now();store('undian-config',cfg);pushBank()}
+  var bankPushing=false, bankDirty=false;
+  function pushBank(){
+    if(!db||!canWrite) return;
+    if(bankPushing){bankDirty=true;return}
+    bankPushing=true; bankDirty=false;
+    db.from(TABLE).upsert({id:'bank',data:{mode:cfg.mode,bank:cfg.bank,file:cfg.file,at:cfg.at,savedAt:cfg.savedAt},updated_at:new Date().toISOString()}).then(function(res){
+      if(res.error) setSync('bad','Bank soal gagal disimpan ke server: '+res.error.message);
+      else setSync('ok','Bank soal tersimpan di server · '+stamp());
+    }).then(function(){bankPushing=false; if(bankDirty) pushBank()});
+  }
 
   /* ---------- pembuat soal otomatis ---------- */
   // 5 bilangan (1–99) dengan + − × ÷ masing-masing sekali, aturan kali/bagi dulu
@@ -784,6 +795,12 @@ body.viewer .tabs a:not([data-view="riwayat"]){display:none}
       if(res.error){setSync('bad','Tidak bisa membaca server: '+res.error.message);return}
       var rows={}; (res.data||[]).forEach(function(r){rows[r.id]=r.data||{}});
       var s1=(rows.tahap1&&rows.tahap1.drawn)||[], s2=(rows.tahap2&&rows.tahap2.items)||[];
+      // bank soal: pakai versi yang paling baru disimpan (upload terakhir)
+      var sb=rows.bank;
+      if(sb&&sb.bank&&(sb.savedAt||0)>(cfg.savedAt||0)){
+        cfg={mode:sb.mode||'upload',bank:sb.bank,file:sb.file||'',at:sb.at||'',savedAt:sb.savedAt};
+        store('undian-config',cfg); renderT2();
+      } else if((cfg.savedAt||0)>((sb&&sb.savedAt)||0)) pushBank();
       if(!t1.length&&s1.length){t1=s1.slice();store('undian-1-25',t1);renderT1()} else if(t1.length&&!s1.length) pushLive('tahap1');
       if(!t2.length&&s2.length){t2=s2.map(function(d){return {n:d.n,q:d.q,shown:d.shown}});store('undian-tahap-2',t2);renderT2()} else if(t2.length&&!s2.length) pushLive('tahap2');
       renderAdmin(); setSync('ok','Tersambung ke server');
