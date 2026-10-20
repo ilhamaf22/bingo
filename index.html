@@ -300,8 +300,8 @@ body.viewer .tabs a:not([data-view="riwayat"]){display:none}
   <div class="panel">
     <h2>Template &amp; Upload Soal</h2>
     <ol class="steps">
-      <li><b>Unduh template</b> Excel. Isinya 25 baris contoh (satu per jawaban 1–25).</li>
-      <li>Ganti kolom <b>Soal</b> dengan soal Anda. Satu jawaban boleh punya lebih dari satu baris soal; nanti dipilih acak.</li>
+      <li><b>Unduh template</b> Excel. Isinya 100 baris contoh: 4 soal untuk setiap jawaban 1–25.</li>
+      <li>Ganti kolom <b>Soal</b> dengan soal Anda. Setiap angka keluar satu kali saja (total 25 undian); dari 4 soalnya, satu dipilih acak saat angka itu keluar.</li>
       <li><b>Upload</b> file kembali di sini (.xlsx atau .csv). Soal boleh berupa teks bebas dan tampil persis seperti yang ditulis; aplikasi tidak menghitung ulang, jadi pastikan sendiri kolom Jawaban sudah benar.</li>
     </ol>
     <div class="row">
@@ -378,8 +378,8 @@ body.viewer .tabs a:not([data-view="riwayat"]){display:none}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script>
   /* ====== PENGATURAN SUPABASE — isi dari Project Settings → API ====== */
-  var SUPABASE_URL = 'https://ktlqzrbgkxwxzodslrzm.supabase.co';
-  var SUPABASE_ANON_KEY = 'sb_publishable_MQumrzXzVsAFwzCAywtG5w_l5P1WxGT';
+  var SUPABASE_URL = 'https://XXXXXXXX.supabase.co';
+  var SUPABASE_ANON_KEY = 'ISI_ANON_PUBLIC_KEY_DI_SINI';
 </script>
 <script>
 (function(){
@@ -643,7 +643,7 @@ body.viewer .tabs a:not([data-view="riwayat"]){display:none}
 
   /* ---------- unduh template ---------- */
   function msg(el,cls,text){el.className='msg '+cls;el.textContent=text;el.hidden=false}
-  function templateRows(){var r=[];for(var n=1;n<=MAX;n++) r.push({No:n,Jawaban:n,Soal:autoQuestion(n)});return r}
+  function templateRows(){var r=[],no=1;for(var n=1;n<=MAX;n++) for(var k=0;k<4;k++) r.push({No:no++,Jawaban:n,Soal:autoQuestion(n)});return r}
   var dlCap=null;
   if(window.claude&&typeof window.claude.use==='function'){ window.claude.use('downloads').then(function(d){dlCap=d}).catch(function(){}); }
   function offer(filename,data){
@@ -665,7 +665,7 @@ body.viewer .tabs a:not([data-view="riwayat"]){display:none}
     var info=XLSX.utils.aoa_to_sheet([
       ['Petunjuk pengisian'],[''],
       ['1. Isi kolom Jawaban dengan angka 1–25 dan kolom Soal dengan operasi hitungnya.'],
-      ['2. Satu jawaban boleh punya beberapa baris soal; saat undian dipilih acak.'],
+      ['2. Template berisi 4 soal untuk tiap jawaban (100 baris). Tiap angka 1–25 keluar sekali; satu dari 4 soalnya dipilih acak.'],
       ['3. Soal boleh berupa operasi hitung atau teks bebas (misalnya soal cerita). Soal tampil persis seperti yang ditulis.'],
       ['4. Soal tidak dihitung ulang oleh aplikasi. Pastikan sendiri jawaban di kolom Jawaban sudah benar.'],
       ['5. Kolom No tidak wajib. Jangan ubah judul kolom Jawaban dan Soal.']
@@ -818,12 +818,21 @@ body.viewer .tabs a:not([data-view="riwayat"]){display:none}
 
   $('loginForm').addEventListener('submit',function(e){
     e.preventDefault();
-    var btn=$('loginBtn'); btn.disabled=true; btn.textContent='Masuk…'; $('loginMsg').hidden=true;
+    var btn=$('loginBtn'), m=$('loginMsg');
+    function fail(t){m.className='msg bad';m.textContent=t;m.hidden=false;btn.disabled=false;btn.textContent='Masuk'}
+    if(!db){fail('Supabase belum tersambung. Periksa SUPABASE_URL dan SUPABASE_ANON_KEY di bagian atas kode.');return}
+    btn.disabled=true; btn.textContent='Masuk…'; m.hidden=true;
     db.auth.signInWithPassword({email:$('loginEmail').value.trim(),password:$('loginPass').value}).then(function(r){
-      btn.disabled=false; btn.textContent='Masuk';
-      if(r.error){var m=$('loginMsg');m.className='msg bad';m.textContent='Email atau kata sandi salah.';m.hidden=false;}
-      else $('loginPass').value='';
-    });
+      if(!r.error){btn.disabled=false;btn.textContent='Masuk';$('loginPass').value='';return}
+      var e=r.error, raw=(e.message||'')+' '+(e.code||''), t;
+      if(/invalid login credentials|invalid_credentials/i.test(raw)) t='Email atau kata sandi salah, atau akun belum dibuat di Supabase.';
+      else if(/email not confirmed|email_not_confirmed/i.test(raw)) t='Email admin belum dikonfirmasi. Di Supabase: Authentication → Users → klik user → Confirm email (atau buat ulang dengan "Auto Confirm User").';
+      else if(/invalid api key|no api key/i.test(raw)) t='Anon key salah. Salin ulang dari Project Settings → API.';
+      else if(/email logins are disabled|provider.*disabled|email_provider_disabled/i.test(raw)) t='Login email dimatikan. Aktifkan provider Email di Authentication → Sign In / Providers (yang dimatikan cukup "Allow new users to sign up").';
+      else if(/failed to fetch|network/i.test(raw)) t='Tidak bisa menghubungi Supabase. Periksa SUPABASE_URL dan koneksi internet.';
+      else t='Gagal masuk.';
+      fail(t+' (Pesan Supabase: '+(e.message||'-')+(e.status?', status '+e.status:'')+')');
+    }).catch(function(e){fail('Tidak bisa menghubungi Supabase. Periksa SUPABASE_URL. ('+(e&&e.message||e)+')')});
   });
   $('logoutBtn').addEventListener('click',function(){ db&&db.auth.signOut(); });
 
